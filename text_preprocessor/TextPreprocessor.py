@@ -61,7 +61,6 @@ class TextPreprocessor:
         """Takes a list of method as an argument and adds it to the pipeline"""
         if not isinstance(methods, list):
             methods = [methods]
-
         for method in methods:
             if getattr(method.__func__, 'is_pipeline_method', False):
                 if method not in self.pipeline:
@@ -77,7 +76,6 @@ class TextPreprocessor:
         """Takes a method as an argument and removes it from the pipeline"""
         if not isinstance(methods, list):
             methods = [methods]
-
         for method in methods:
             if method in self.pipeline:
                 self.pipeline.remove(method)
@@ -109,6 +107,9 @@ class TextPreprocessor:
         else:
             self.logger.info("The pipeline is already empty")
 
+
+    ################################## PIPELINE METHODS ##################################
+    
 
     @pipeline_method
     def make_lowercase(self, input_text: str) -> str:
@@ -175,6 +176,13 @@ class TextPreprocessor:
 
 
     @pipeline_method
+    def remove_duplicate_punctuation(self, input_text: str) -> str:
+        """Removes duplicate punctuation in a given text"""
+        processed_text = re.sub(r'([\!\?\.\,\:\;]){2,}', r'\1', input_text)
+        return processed_text
+
+
+    @pipeline_method
     def remove_special_characters(self, input_text: str, special_characters: Optional[str] = None) -> str:
         """Removes special characters"""
         try:
@@ -191,7 +199,8 @@ class TextPreprocessor:
     def keep_alpha_numeric(self, input_text: str) -> str:
         """Remove any character except alphanumeric characters"""
         try:
-            return ''.join(c for c in input_text if c.isalnum())
+            processed_text = ''.join(c for c in input_text if c.isalnum())
+            return processed_text
         except AttributeError:
             self.logger.error('Invalid input to keep_alpha_numeric, expected str but got %s', type(input_text))
 
@@ -211,7 +220,8 @@ class TextPreprocessor:
     def expand_contractions(self, input_text: str) -> str:
         """Expand contracitions in input text"""
         try:
-            return contractions.fix(input_text)
+            processed_text = contractions.fix(input_text)
+            return processed_text
         except AttributeError:
             self.logger.error('Invalid input to remove_contractions, expected str but got %s', type(input_text))
 
@@ -224,6 +234,26 @@ class TextPreprocessor:
             return processed_tokens
         except AttributeError:
             self.logger.error('Invalid input to normalize_unicode, expected str but got %s', type(input_text))
+
+    
+    @pipeline_method
+    def encode_text(self, input_text: str, encoding: str = 'utf-8') -> bytes:
+        """Encode the text in a given encoding.
+
+        Args:
+            input_text (str): The text to encode.
+            encoding (str): The encoding to use. Default is 'utf-8'.
+
+        Returns:
+            bytes: The encoded text.
+        """
+        try:
+            if encoding not in ['utf-8', 'ascii']:
+                raise ValueError("Invalid encoding type. Only 'utf-8' and 'ascii' are supported.")
+            processed_text = input_text.encode(encoding)
+            return processed_text
+        except AttributeError:
+            self.logger.error('Invalid input to encode_text, expected str but got %s', type(input_text))
 
 
     @pipeline_method
@@ -417,6 +447,64 @@ class TextPreprocessor:
             return processed_tokens
         except AttributeError:
             self.logger.error('Invalid input to substitute_tokens, expected str but got %s', type(token_list))
+
+
+    @pipeline_method
+    def handle_line_feeds(self, input_text: str, mode: str = 'remove') -> str:
+        """Handle line feeds in the input text
+
+        Args:
+            input_text (str): The text to process
+            mode (str, optional): The line feed handling mode. Options are 'remove', 'crlf' (convert to '\r\n')
+                and 'lf' (convert to '\n'). Defaults to 'remove'.
+
+        Returns:
+            str: The processed text
+        """
+        if mode == 'remove':
+            return input_text.replace('\n', '').replace('\r', '')
+        elif mode == 'crlf':
+            return input_text.replace('\n', '\r\n').replace('\r\r\n', '\r\n')
+        elif mode == 'lf':
+            return input_text.replace('\r\n', '\n').replace('\r', '\n')
+        else:
+            raise ValueError(f"Invalid mode: '{mode}'. Options are 'remove', 'crlf', and 'lf'.")
+        
+
+    ################################## DEFAULT PIPELINE ##################################
+
+
+    def load_default_pipeline(self):
+        """Adds a set of default methods to the pipeline"""
+        if self.pipeline:
+            self.clear_pipeline()
+
+        default_methods = [
+            self.tokenize_sentences,
+            self.make_lowercase,
+            self.remove_stopwords,
+            self.lemmatize_words,
+            self.check_spelling,
+            self.remove_punctuation,
+            self.remove_numbers,
+        ]
+        
+        self.add_to_pipeline(default_methods)
+        self.logger.info("Default pipeline loaded.")
+
+
+    def execute_default_pipeline(self, input_text: str) -> str:
+        """Set up and run the default pipeline on the given text
+
+        Args:
+            input_text (str): The text to process.
+        Returns:
+            str: The processed text
+        """
+        if self.pipeline:
+            self.clear_pipeline()
+        self.load_default_pipeline()
+        return self.execute_pipeline(input_text)
 
 
 if __name__ == '__main__':

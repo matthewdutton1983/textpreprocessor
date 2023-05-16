@@ -1,0 +1,6 @@
+nltk
+pyspellchecker
+contractions
+names-dataset==3.1.0
+# For unit test
+unittest-xml-reporting

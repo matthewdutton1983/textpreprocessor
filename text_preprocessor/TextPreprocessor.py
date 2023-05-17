@@ -7,11 +7,12 @@ import logging
 import csv
 from pathlib import Path
 from unicodedata import normalize
-from typing import Optional, Union, Dict, List, Any
+from typing import Optional, Union, Tuple, Dict, List, Any
 
 # Import third-party libraries
 import contractions
 import nltk
+import spacy
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, PunktSentenceTokenizer
 from nltk.stem import PorterStemmer, SnowballStemmer, LancasterStemmer, WordNetLemmatizer
@@ -246,11 +247,16 @@ class TextPreprocessor:
     
 
     @pipeline_method
-    def remove_email_addresses(self, input_text: str) -> str:
-        # TODO: Ability to add custom mask
+    def remove_email_addresses(self, input_text: str, use_mask: Optional[bool] = False, 
+                               custom_mask: Optional[str] = None) -> str:
         try:
-            regex_pattern = '[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}'
-            return re.sub(regex_pattern, '', input_text)
+            regex_pattern = re.compile(r'[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}')
+            if custom_mask:
+                use_mask = True
+                mask = custom_mask
+            else:
+                mask = '<EMAIL_ADDRESS>'
+            return regex_pattern.sub(mask if use_mask else '', input_text)
         except Exception as e:
             function_name = inspect.currentframe().f_code.co_name
             self.logger.error(f'Error occurred in function {function_name}:', str(e))
@@ -335,52 +341,68 @@ class TextPreprocessor:
             self.logger.error(f'Error occurred in function {function_name}:', str(e))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# NEED TO REVIEW THE METHODS BELOW
-# ADD WARNING WHEN BUILDING PIPELINE THAT IF THE OUTPUT OF A METHOD IS A LIST IT MIGHT SCREW WITH RESULTS
-
-
-
-
     @pipeline_method
-    def remove_phone_numbers(self, input_text: str, use_mask: Optional[bool] = False, custom_mask: Optional[str] = None) -> str:
+    def normalize_unicode(self, input_text: str) -> str:
+        """Normalize unicode data to remove umlauts, and accents, etc."""
         try:
-            regex_pattern = re.compile(r'(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})(?: *x(\d+))?')
+            return normalize('NFKD', input_text).encode('ASCII', 'ignore').decode('utf-8')
+        except Exception as e:
+            function_name = inspect.currentframe().f_code.co_name
+            self.logger.error(f'Error occurred in function {function_name}:', str(e))
+    
+    
+    @pipeline_method
+    def remove_names(self, input_text: str, use_mask: Optional[bool] = True, custom_mask: Optional[str] = None) -> str:
+        try:
             if custom_mask:
                 use_mask = True
                 mask = custom_mask
             else:
-                mask = '[PHONE_NUMBER]'
-            return regex_pattern.sub(mask if use_mask else '', input_text)
+                mask = '<NAME>'
+
+            nlp = spacy.load('en_core_web_sm')
+            doc = nlp(input_text)
+            tokens = []
+
+            index = 0
+            while index < len(doc):
+                token = doc[index]
+                if token.ent_type_ == 'PERSON':
+                    if use_mask:
+                        tokens.append(mask)
+                    while index < len(doc) and doc[index].ent_type_ == 'PERSON':
+                        index += 1
+                else:
+                    tokens.append(token.text)
+                    index += 1
+
+            return ''.join([(t if t in string.punctuation else ' ' + t) for t in tokens]).strip()
         except Exception as e:
             function_name = inspect.currentframe().f_code.co_name
             self.logger.error(f'Error occurred in function {function_name}:', str(e))
 
+    
+    ################################## METHODS TO REVIEW ##################################
+
 
     @pipeline_method
-    def keep_alpha_numeric(self, input_text: str) -> str:
-        """Remove any character except alphanumeric characters"""
+    def remove_whitespace(self, input_text: str, mode: str = 'strip') -> str:
+        """Removes leading and trailing spaces by default, but includes options to remove duplicate whitespace and non-ASCII space characters"""
+        # TODO: Convert duplicates into a boolean parameter
         try:
-            return ' '.join(c for c in input_text if c.isalnum())
+            if mode == 'leading':
+                processed_text = re.sub(r'^\s+', '', input_text, flags=re.UNICODE)
+            elif mode == 'trailing':
+                processed_text = re.sub(r'\s+$', '', input_text, flags=re.UNICODE)
+            elif mode == 'all':
+                processed_text = re.sub(r'\s+', '', input_text, flags=re.UNICODE)
+            elif mode == 'duplicates':
+                processed_text = ' '.join(re.split('\s+', input_text, flags=re.UNICODE))
+            elif mode == 'strip':
+                processed_text = re.sub(r'^\s+|\s+$', '', input_text, flags=re.UNICODE)
+            else:
+                raise ValueError(f"Invalid mode: '{mode}'. Options are 'strip', 'all', 'leading' and 'trailing'.")
+            return processed_text
         except Exception as e:
             function_name = inspect.currentframe().f_code.co_name
             self.logger.error(f'Error occurred in function {function_name}:', str(e))
@@ -398,11 +420,27 @@ class TextPreprocessor:
             self.logger.error(f'Error occurred in function {function_name}:', str(e))
 
 
+
     @pipeline_method
-    def normalize_unicode(self, input_text: str) -> str:
-        """Normalize unicode data to remove umlauts, and accents, etc."""
+    def remove_phone_numbers(self, input_text: str, use_mask: Optional[bool] = False, custom_mask: Optional[str] = None) -> str:
         try:
-            return normalize('NFKD', input_text).encode('ASCII', 'ignore').decode('utf-8')
+            regex_pattern = re.compile(r'(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})(?: *x(\d+))?')
+            if custom_mask:
+                use_mask = True
+                mask = custom_mask
+            else:
+                mask = '<PHONE_NUMBER>'
+            return regex_pattern.sub(mask if use_mask else '', input_text)
+        except Exception as e:
+            function_name = inspect.currentframe().f_code.co_name
+            self.logger.error(f'Error occurred in function {function_name}:', str(e))
+
+
+    @pipeline_method
+    def keep_alpha_numeric(self, input_text: str) -> str:
+        """Remove any character except alphanumeric characters"""
+        try:
+            return ' '.join(c for c in input_text if c.isalnum())
         except Exception as e:
             function_name = inspect.currentframe().f_code.co_name
             self.logger.error(f'Error occurred in function {function_name}:', str(e))
@@ -445,25 +483,25 @@ class TextPreprocessor:
             self.logger.error(f'Error occurred in function {function_name}:', str(e))
 
 
-    @pipeline_method
-    def remove_names(self, input_text_or_list: Union[str, List[str]]) -> List[str]:
-        try:
-            self.logger.info('Loading names dataset ...')
-            name_searcher = NameDataset()
-            if isinstance(input_text_or_list, str):
-                tokens = word_tokenize(input_text_or_list)
-                processed_tokens = [token for token in tokens
-                                    if (not name_searcher.search_first_name(token)) and
-                                    (not name_searcher.search_last_name(token))]
-            else:
-                processed_tokens = [token for token in input_text_or_list
-                                    if (not name_searcher.search_first_name(token)) and
-                                    (not name_searcher.search_last_name(token)) and
-                                    token is not None and len(token) > 0]
-            return processed_tokens
-        except Exception as e:
-            function_name = inspect.currentframe().f_code.co_name
-            self.logger.error(f'Error occurred in function {function_name}:', str(e))
+    # @pipeline_method
+    # def remove_names(self, input_text_or_list: Union[str, List[str]]) -> List[str]:
+    #     try:
+    #         self.logger.info('Loading names dataset ...')
+    #         nd = NameDataset()
+    #         if isinstance(input_text_or_list, str):
+    #             tokens = word_tokenize(input_text_or_list)
+    #             processed_tokens = [token for token in tokens
+    #                                 if (not nd.search_first_name(token)) and
+    #                                 (not nd.search_last_name(token))]
+    #         else:
+    #             processed_tokens = [token for token in input_text_or_list
+    #                                 if (not nd.search_first_name(token)) and
+    #                                 (not nd.search_last_name(token)) and
+    #                                 token is not None and len(token) > 0]
+    #         return processed_tokens
+    #     except Exception as e:
+    #         function_name = inspect.currentframe().f_code.co_name
+    #         self.logger.error(f'Error occurred in function {function_name}:', str(e))
  
 
     @pipeline_method

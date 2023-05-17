@@ -19,43 +19,54 @@ from names_dataset import NameDataset
 
 logging.basicConfig(level=logging.INFO)
 
+
 class TextPreprocessor:
     def __init__(
-            self,
-            ignore_spellcheck_word_file_path: Optional[Union[str, Path]] = None,
-            custom_sub_csv_file_path: Optional[Union[str, Path]] = None, 
-            language: str = 'en',
-            stemmer: Optional[Union[PorterStemmer, SnowballStemmer, WordNetLemmatizer, LancasterStemmer]] = None, 
-            lemmatizer: Optional[WordNetLemmatizer] = None,
-        ):
-    
+        self,
+        ignore_spellcheck_word_file_path: Optional[Union[str, Path]] = None,
+        custom_sub_csv_file_path: Optional[Union[str, Path]] = None,
+        language: str = 'en',
+        stemmer: Optional[str] = None,
+        lemmatizer: Optional[WordNetLemmatizer] = None,
+    ):
+
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-        
+
         self.pipeline = []
 
-        self._CUSTOM_SUB_CSV_FILE_PATH = custom_sub_csv_file_path or os.path.join(os.path.dirname(__file__), './data/custom_substitutions.csv')        
-        self._IGNORE_SPELLCHECK_WORD_FILE_PATH = ignore_spellcheck_word_file_path or os.path.join(os.path.dirname(__file__), './data/ignore_spellcheck_words.txt')
+        self._CUSTOM_SUB_CSV_FILE_PATH = custom_sub_csv_file_path or os.path.join(
+            os.path.dirname(__file__), './data/custom_substitutions.csv')
+        self._IGNORE_SPELLCHECK_WORD_FILE_PATH = ignore_spellcheck_word_file_path or os.path.join(
+            os.path.dirname(__file__), './data/ignore_spellcheck_words.txt')
 
         self.default_lemmatizer = lemmatizer
-        self.default_stemmer = stemmer
+        self.default_stemmer = None
+        if stemmer is not None:
+            if stemmer.lower() == 'porter':
+                self.default_stemmer = PorterStemmer()
+            elif stemmer.lower() == 'snowball':
+                self.default_stemmer = SnowballStemmer(language)
+            elif stemmer.lower() == 'lancaster':
+                self.default_stemmer = LancasterStemmer()
+            else:
+                raise ValueError(
+                    f"Unsupported stemmer '{stemmer}'. Supported stemmers are: 'porter', 'snowball', 'lancaster'")
 
-        supported_languages = ['en', 'es', 'fr', 'pt', 'de', 'ru', 'ar']        
+        supported_languages = ['en', 'es', 'fr', 'pt', 'de', 'ru', 'ar']
         if language not in supported_languages:
-            raise ValueError(f"Unsupported language '{language}'. Supported language are: {supported_languages}")
+            raise ValueError(
+                f"Unsupported language '{language}'. Supported language are: {supported_languages}")
         self.language = language
 
         nltk.download('stopwords', quiet=True)
         nltk.download('wordnet', quiet=True)
         nltk.download('punkt', quiet=True)
-        nltk.download('omw-1.4')
-
 
     def pipeline_method(func):
         """Decorator to mark methods that can be added to the pipeline"""
         func.is_pipeline_method = True
         return func
-    
 
     def add_to_pipeline(self, methods):
         """Takes a list of method as an argument and adds it to the pipeline"""
@@ -65,12 +76,14 @@ class TextPreprocessor:
             if getattr(method.__func__, 'is_pipeline_method', False):
                 if method not in self.pipeline:
                     self.pipeline.append(method)
-                    self.logger.info(f'{method.__name__} has been successfully added to the pipeline')
+                    self.logger.info(
+                        f'{method.__name__} has been successfully added to the pipeline')
                 else:
-                    self.logger.warning(f'{method.__name__} is already in the pipeline')
+                    self.logger.warning(
+                        f'{method.__name__} is already in the pipeline')
             else:
-                self.logger.error(f'{method.__name__} is not a pipeline method and cannot be added')
-
+                self.logger.error(
+                    f'{method.__name__} is not a pipeline method and cannot be added')
 
     def remove_from_pipeline(self, methods):
         """Takes a method as an argument and removes it from the pipeline"""
@@ -79,10 +92,10 @@ class TextPreprocessor:
         for method in methods:
             if method in self.pipeline:
                 self.pipeline.remove(method)
-                self.logger.info(f'{method.__name__} has been successfully removed from the pipeline')
+                self.logger.info(
+                    f'{method.__name__} has been successfully removed from the pipeline')
             else:
                 self.logger.error(f'{method.__name__} is not in the pipeline')
-
 
     def view_pipeline(self):
         """Prints the name of each method in the pipeline"""
@@ -93,12 +106,10 @@ class TextPreprocessor:
         else:
             self.logger.error('The pipeline is currently empty')
 
-
     def execute_pipeline(self, text):
         for method in self.pipeline:
             text = method(text)
         return text
-    
 
     def clear_pipeline(self):
         if self.pipeline:
@@ -107,9 +118,7 @@ class TextPreprocessor:
         else:
             self.logger.info("The pipeline is already empty")
 
-
     ################################## PIPELINE METHODS ##################################
-    
 
     @pipeline_method
     def make_lowercase(self, input_text: str) -> str:
@@ -117,9 +126,9 @@ class TextPreprocessor:
         try:
             return input_text.lower()
         except AttributeError:
-            self.logger.error('Invalid input to to_lower, expected str but got %s', type(input_text))
+            self.logger.error(
+                'Invalid input to to_lower, expected str but got %s', type(input_text))
             return ''
-
 
     @pipeline_method
     def make_uppercase(self, input_text: str) -> str:
@@ -127,28 +136,29 @@ class TextPreprocessor:
         try:
             return input_text.upper()
         except AttributeError:
-            self.logger.error('Invalid input to to_upper, expected str but got %s', type(input_text))
+            self.logger.error(
+                'Invalid input to to_upper, expected str but got %s', type(input_text))
 
-    
     @pipeline_method
     def remove_numbers(self, input_text: str) -> str:
         """Remove number in the input text"""
-        try:    
+        try:
             processed_text = re.sub('\d+', '', input_text)
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to remove_numbers, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_numbers, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_itemized_bullets_and_numbering(self, input_text: str) -> str:
         """Remove bullets or numbering in itemized input"""
         try:
-            processed_text = re.sub('[(\s][0-9a-zA-Z][.)]\s+|[(\s][ivxIVX]+[.)]\s+', ' ', input_text)
+            processed_text = re.sub(
+                '[(\s][0-9a-zA-Z][.)]\s+|[(\s][ivxIVX]+[.)]\s+', ' ', input_text)
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to remove_itemized_bullets_and_numbering, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_itemized_bullets_and_numbering, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_urls(self, input_text: str) -> str:
@@ -157,8 +167,8 @@ class TextPreprocessor:
             processed_text = re.sub('(www|http)\S+', '', input_text)
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to remove_url, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_url, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_punctuation(self, input_text: str, punctuations: Optional[str] = None) -> str:
@@ -169,18 +179,18 @@ class TextPreprocessor:
         try:
             if punctuations is None:
                 punctuations = string.punctuation
-            processed_text = input_text.translate(str.maketrans('', '', punctuations))
+            processed_text = input_text.translate(
+                str.maketrans('', '', punctuations))
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to remove_punctuation, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_punctuation, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_duplicate_punctuation(self, input_text: str) -> str:
         """Removes duplicate punctuation in a given text"""
         processed_text = re.sub(r'([\!\?\.\,\:\;]){2,}', r'\1', input_text)
         return processed_text
-
 
     @pipeline_method
     def remove_special_characters(self, input_text: str, special_characters: Optional[str] = None) -> str:
@@ -189,11 +199,12 @@ class TextPreprocessor:
             if special_characters is None:
                 # TODO: add more special characters
                 special_characters = 'å¼«¥ª°©ð±§µæ¹¢³¿®ä£'
-            processed_text = input_text.translate(str.maketrans('', '', special_characters))
+            processed_text = input_text.translate(
+                str.maketrans('', '', special_characters))
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to remove_special_characters, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_special_characters, expected str but got %s', type(input_text))
 
     @pipeline_method
     def keep_alpha_numeric(self, input_text: str) -> str:
@@ -202,8 +213,8 @@ class TextPreprocessor:
             processed_text = ''.join(c for c in input_text if c.isalnum())
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to keep_alpha_numeric, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to keep_alpha_numeric, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_whitespace(self, input_text: str, remove_duplicate_whitespace: bool = True) -> str:
@@ -213,8 +224,8 @@ class TextPreprocessor:
                 return ''.join(re.split('\s+', input_text.strip(), flags=re.UNICODE))
             return input_text.strip()
         except AttributeError:
-            self.logger.error('Invalid input to remove_whitespace, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_whitespace, expected str but got %s', type(input_text))
 
     @pipeline_method
     def expand_contractions(self, input_text: str) -> str:
@@ -223,19 +234,20 @@ class TextPreprocessor:
             processed_text = contractions.fix(input_text)
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to remove_contractions, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_contractions, expected str but got %s', type(input_text))
 
     @pipeline_method
     def normalize_unicode(self, input_text: str) -> str:
         """Normalize unicode data to remove umlauts, and accents, etc."""
         try:
-            processed_tokens = normalize('NFKD', input_text).encode('ASCII', 'ignore').decode('utf-8')
+            processed_tokens = normalize('NFKD', input_text).encode(
+                'ASCII', 'ignore').decode('utf-8')
             return processed_tokens
         except AttributeError:
-            self.logger.error('Invalid input to normalize_unicode, expected str but got %s', type(input_text))
+            self.logger.error(
+                'Invalid input to normalize_unicode, expected str but got %s', type(input_text))
 
-    
     @pipeline_method
     def encode_text(self, input_text: str, encoding: str = 'utf-8') -> bytes:
         """Encode the text in a given encoding.
@@ -249,12 +261,13 @@ class TextPreprocessor:
         """
         try:
             if encoding not in ['utf-8', 'ascii']:
-                raise ValueError("Invalid encoding type. Only 'utf-8' and 'ascii' are supported.")
+                raise ValueError(
+                    "Invalid encoding type. Only 'utf-8' and 'ascii' are supported.")
             processed_text = input_text.encode(encoding)
             return processed_text
         except AttributeError:
-            self.logger.error('Invalid input to encode_text, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to encode_text, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_stopwords(self, input_text_or_list: Union[str, List[str]], stop_words: Optional[set] = None) -> List[str]:
@@ -266,14 +279,15 @@ class TextPreprocessor:
                 stop_words = set(stop_words)
             if isinstance(input_text_or_list, str):
                 tokens = word_tokenize(input_text_or_list)
-                processed_tokens = [token for token in tokens if token not in stop_words]
+                processed_tokens = [
+                    token for token in tokens if token not in stop_words]
             else:
-                processed_tokens = [token for token in input_text_or_list 
+                processed_tokens = [token for token in input_text_or_list
                                     if (token not in stop_words and token is not None and len(token) > 0)]
             return processed_tokens
         except AttributeError:
-            self.logger.error('Invalid input to remove_stopwords, expected str but got %s', type(input_text_or_list))
-
+            self.logger.error(
+                'Invalid input to remove_stopwords, expected str but got %s', type(input_text_or_list))
 
     @pipeline_method
     def remove_email_addresses(self, input_text: str) -> str:
@@ -282,8 +296,8 @@ class TextPreprocessor:
             regex_pattern = '[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}'
             return re.sub(regex_pattern, '', input_text)
         except AttributeError:
-            self.logger.error('Invalid input to remove_email_addresses, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_email_addresses, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_phone_numbers(self, input_text: str) -> str:
@@ -292,8 +306,8 @@ class TextPreprocessor:
             regex_pattern = '(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})(?: *x(\d+))?'
             return re.sub(regex_pattern, '', input_text)
         except AttributeError:
-            self.logger.error('Invalid input to remove_phone_numbers, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_phone_numbers, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_social_security_numbers(self, input_text: str) -> str:
@@ -303,8 +317,8 @@ class TextPreprocessor:
                             '?!219099999|078051120)(?!666|000|9\d{2})\d{3}(?!00)\d{2}(?!0{4})\d{4}'
             return re.sub(regex_pattern, '', input_text)
         except AttributeError:
-            self.logger.error('Invalid input to remove_social_security_numbers, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_social_security_numbers, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_credit_card_numbers(self, input_text: str) -> str:
@@ -315,8 +329,8 @@ class TextPreprocessor:
                             '?:2131|1800|35\d{3})\d{11})'
             return re.sub(regex_pattern, '', input_text)
         except AttributeError:
-            self.logger.error('Invalid input to remove_credit_card_numbers, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to remove_credit_card_numbers, expected str but got %s', type(input_text))
 
     @pipeline_method
     def remove_names(self, input_text_or_list: Union[str, List[str]]) -> List[str]:
@@ -325,48 +339,49 @@ class TextPreprocessor:
             name_searcher = NameDataset()
             if isinstance(input_text_or_list, str):
                 tokens = word_tokenize(input_text_or_list)
-                processed_tokens = [token for token in tokens 
-                                    if (not name_searcher.search_first_name(token)) and 
+                processed_tokens = [token for token in tokens
+                                    if (not name_searcher.search_first_name(token)) and
                                     (not name_searcher.search_last_name(token))]
             else:
-                processed_tokens = [token for token in input_text_or_list 
-                                    if (not name_searcher.search_first_name(token)) and 
-                                    (not name_searcher.search_last_name(token)) and 
+                processed_tokens = [token for token in input_text_or_list
+                                    if (not name_searcher.search_first_name(token)) and
+                                    (not name_searcher.search_last_name(token)) and
                                     token is not None and len(token) > 0]
             return processed_tokens
         except AttributeError:
-            self.logger.error('Invalid input to remove_names, expected str but got %s', type(input_text_or_list))
-
+            self.logger.error(
+                'Invalid input to remove_names, expected str but got %s', type(input_text_or_list))
 
     @pipeline_method
-    def check_spelling(self, input_text_or_list: Union[str, List[str]], lang='en') -> str:
+    def check_spelling(self, input_text_or_list: Union[str, List[str]]) -> str:
         """ Check and correct spellings of the text list """
         # TODO: add acronyms into spell checker to ignore auto correction specified by _IGNORE_SPELLCHECK_WORD_FILE_PATH
         try:
             spell_checker = SpellChecker(language=self.language, distance=1)
             if self._IGNORE_SPELLCHECK_WORD_FILE_PATH is not None:
-                spell_checker.word_frequency.load_text_file(self._IGNORE_SPELLCHECK_WORD_FILE_PATH)
-            
+                spell_checker.word_frequency.load_text_file(
+                    self._IGNORE_SPELLCHECK_WORD_FILE_PATH)
+
             if input_text_or_list is None or len(input_text_or_list) == 0:
                 return ''
-            
+
             if isinstance(input_text_or_list, str):
                 if not input_text_or_list.islower():
                     input_text_or_list = input_text_or_list.lower()
                 tokens = word_tokenize(input_text_or_list)
             else:
-                tokens = [token.lower() for token in input_text_or_list 
-                        if token is not None and len(token) > 0]
-            
-            misspelled = self.spell_checker.unknown(tokens)
-            
+                tokens = [token.lower() for token in input_text_or_list
+                          if token is not None and len(token) > 0]
+
+            misspelled = spell_checker.unknown(tokens)
+
             for word in misspelled:
-                tokens[tokens.index(word)] = self.spell_checker.correction(word)
-            
+                tokens[tokens.index(word)] = spell_checker.correction(word)
+
             return ' '.join(tokens).strip()
         except AttributeError:
-            self.logger.error('Invalid input to check_spelling, expected str but got %s', type(input_text_or_list))
-
+            self.logger.error(
+                'Invalid input to check_spelling, expected str but got %s', type(input_text_or_list))
 
     @pipeline_method
     def tokenize_words(self, input_text: str) -> List[str]:
@@ -376,11 +391,11 @@ class TextPreprocessor:
                 return []
             return word_tokenize(input_text)
         except AttributeError:
-            self.logger.error('Invalid input to tokenize_words, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to tokenize_words, expected str but got %s', type(input_text))
 
     @pipeline_method
-    def tokenize_sentences(self, input_text: str, tokenizer: Optional[Any]=None) -> List[str]:
+    def tokenize_sentences(self, input_text: str, tokenizer: Optional[Any] = None) -> List[str]:
         """Converts a text into a list of sentence tokens"""
         try:
             if tokenizer is None:
@@ -390,44 +405,41 @@ class TextPreprocessor:
             sentences = tokenizer.tokenize(input_text)
             return sentences
         except AttributeError:
-            self.logger.error('Invalid input to tokenize_sentences, expected str but got %s', type(input_text))
-
+            self.logger.error(
+                'Invalid input to tokenize_sentences, expected str but got %s', type(input_text))
 
     @pipeline_method
     def stem_words(self, input_text_or_list: Union[str, List[str]]) -> List[str]:
         """Stem each token in a text"""
-        if stemmer is None:
-            if self.default_stemmer is None:
-                self.default_stemmer = PorterStemmer()
-            stemmer = self.default_stemmer
+        stemmer = self.default_stemmer if self.default_stemmer is not None else PorterStemmer()
         try:
             if isinstance(input_text_or_list, str):
                 tokens = word_tokenize(input_text_or_list)
-                processed_tokens = [self.stemmer.stem(token) for token in tokens]
+                processed_tokens = [stemmer.stem(token) for token in tokens]
             else:
-                processed_tokens = [self.stemmer.stem(token) for token in input_text_or_list 
+                processed_tokens = [stemmer.stem(token) for token in input_text_or_list
                                     if token is not None and len(token) > 0]
             return processed_tokens
         except AttributeError:
-            self.logger.error('Invalid input to stem_words, expected str but got %s', type(input_text_or_list))
-
+            self.logger.error(
+                'Invalid input to stem_words, expected str but got %s', type(input_text_or_list))
 
     @pipeline_method
     def lemmatize_words(self, input_text_or_list: Union[str, List[str]]) -> List[str]:
         """Lemmatize each token in a text by finding its base form"""
-        if self.default_lemmatizer is None:
-            self.default_lemmatizer = WordNetLemmatizer()
+        lemmatizer = self.default_lemmatizer if self.default_lemmatizer is not None else WordNetLemmatizer()
         try:
             if isinstance(input_text_or_list, str):
                 tokens = word_tokenize(input_text_or_list)
-                processed_tokens = [self.lemmatizer.lemmatize(token) for token in tokens]
+                processed_tokens = [lemmatizer.lemmatize(
+                    token) for token in tokens]
             else:
-                processed_tokens = [self.lemmatizer.lemmatize(token) for token in input_text_or_list 
+                processed_tokens = [lemmatizer.lemmatize(token) for token in input_text_or_list
                                     if token is not None and len(token) > 0]
             return processed_tokens
         except AttributeError:
-            self.logger.error('Invalid input to lemmatize_words, expected str but got %s', type(input_text_or_list))
-
+            self.logger.error(
+                'Invalid input to lemmatize_words, expected str but got %s', type(input_text_or_list))
 
     @pipeline_method
     def substitute_token(self, token_list: List[str]) -> List[str]:
@@ -435,7 +447,7 @@ class TextPreprocessor:
         try:
             with open(self._CUSTOM_SUB_CSV_FILE_PATH, 'r') as f:
                 csv_file = csv.reader(f)
-                self.sub_dict = dict(csv_file)    
+                self.sub_dict = dict(csv_file)
             if token_list is None or len(token_list) == 0:
                 return []
             processed_tokens = list()
@@ -446,8 +458,8 @@ class TextPreprocessor:
                     processed_tokens.append(token)
             return processed_tokens
         except AttributeError:
-            self.logger.error('Invalid input to substitute_tokens, expected str but got %s', type(token_list))
-
+            self.logger.error(
+                'Invalid input to substitute_tokens, expected str but got %s', type(token_list))
 
     @pipeline_method
     def handle_line_feeds(self, input_text: str, mode: str = 'remove') -> str:
@@ -468,11 +480,10 @@ class TextPreprocessor:
         elif mode == 'lf':
             return input_text.replace('\r\n', '\n').replace('\r', '\n')
         else:
-            raise ValueError(f"Invalid mode: '{mode}'. Options are 'remove', 'crlf', and 'lf'.")
-        
+            raise ValueError(
+                f"Invalid mode: '{mode}'. Options are 'remove', 'crlf', and 'lf'.")
 
     ################################## DEFAULT PIPELINE ##################################
-
 
     def load_default_pipeline(self):
         """Adds a set of default methods to the pipeline"""
@@ -488,10 +499,9 @@ class TextPreprocessor:
             self.remove_punctuation,
             self.remove_numbers,
         ]
-        
+
         self.add_to_pipeline(default_methods)
         self.logger.info("Default pipeline loaded.")
-
 
     def execute_default_pipeline(self, input_text: str) -> str:
         """Set up and run the default pipeline on the given text
@@ -509,7 +519,8 @@ class TextPreprocessor:
 
 if __name__ == '__main__':
     preprocessor = TextPreprocessor()
-    preprocessor.add_to_pipeline([preprocessor.to_lower, preprocessor.remove_names])
+    preprocessor.add_to_pipeline(
+        [preprocessor.make_lowercase, preprocessor.remove_names])
     preprocessor.view_pipeline()
     text = 'Helllo, I am John Doe!!! My email is john.doe@email.com. Visit our website www.johndoe.com'
     result = preprocessor.execute_pipeline(text)

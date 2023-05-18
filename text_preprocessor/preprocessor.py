@@ -494,7 +494,7 @@ class PreProcessor:
             abbrevs = schwartz_hearst.extract_abbreviation_definition_pairs(input_text)
             return abbrevs
         except Exception as e:
-            self.log.error(e)
+            self._log_error(e)
 
     ################################## DEFAULT PIPELINE ##################################
 

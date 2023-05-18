@@ -491,7 +491,7 @@ class PreProcessor:
     @_pipeline_method
     def find_abbreviations(self, input_text: str) -> List[str]:
         try:
-            abbrevs = schwartz_hearst.extract_abbreviation_definition_pairs(input_text)
+            abbrevs = schwartz_hearst.extract_abbreviation_definition_pairs(doc_text=input_text)
             return abbrevs
         except Exception as e:
             self._log_error(e)

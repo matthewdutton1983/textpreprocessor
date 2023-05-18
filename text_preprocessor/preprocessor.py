@@ -13,6 +13,7 @@ from typing import Optional, Callable, Union, Dict, List, Any
 import contractions
 import nltk
 import spacy
+from abbreviations import schwartz_hearst
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, PunktSentenceTokenizer
 from nltk.stem import PorterStemmer, SnowballStemmer, LancasterStemmer, WordNetLemmatizer
@@ -239,6 +240,7 @@ class PreProcessor:
     @_pipeline_method
     def check_spelling(self, input_text_or_list: Union[str, List[str]], case_sensitive: bool = True) -> str:
         # How does the user pass in a language?
+        # It is making text lower case
         try:
             spell_checker = SpellChecker(language=self.language, distance=1, case_sensitive=case_sensitive)
             
@@ -485,6 +487,14 @@ class PreProcessor:
                     f"Invalid mode: '{mode}'. Options are 'remove', 'crlf', and 'lf'.")
         except Exception as e:
             self._log_error(e)
+
+    @_pipeline_method
+    def find_abbreviations(self, input_text: str) -> List[str]:
+        try:
+            abbrevs = schwartz_hearst.extract_abbreviation_definition_pairs(input_text)
+            return abbrevs
+        except Exception as e:
+            self.log.error(e)
 
     ################################## DEFAULT PIPELINE ##################################
 

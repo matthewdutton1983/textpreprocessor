@@ -5,14 +5,15 @@ from unittest.mock import patch, MagicMock
 # Import project code
 from text_preprocessor.TextPreprocessor import TextPreprocessor
 
+
 class TestTextPreprocessor(TestCase):
     def test_replace_words(self):
         input_text = 'Helllo, I am John Doe!!! My email is john.doe@email.com. Visit our website www.johndoe.com'
         expected_output = 'Helllo, I am John Doe!!! My email is foo.bar@email.com. Visit our website www.johndoe.com'
         replacement_dict = {"john": "foo", "doe": "bar"}
-        output_text = TextPreprocessor.replace_words(input_text, replacement_dict=replacement_dict, case_sensitive=True)
+        output_text = TextPreprocessor.replace_words(
+            input_text, replacement_dict=replacement_dict, case_sensitive=True)
         self.assertEqual(output_text, expected_output)
-
 
     def test_make_lowercase(self):
         input_text = 'Helllo, I am John Doe!!!'
@@ -20,20 +21,17 @@ class TestTextPreprocessor(TestCase):
         output_text = TextPreprocessor.make_lowercase(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_make_uppercase(self):
         input_text = 'Helllo, I am John Doe!!!'
         expected_output = 'HELLLO, I AM JOHN DOE!!!'
         output_text = TextPreprocessor.make_uppercase(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_remove_numbers(self):
         input_text = 'My name is John Doe, I am 30 years old'
         expected_output = 'My name is John Doe, I am  years old'
         output_text = TextPreprocessor.remove_numbers(input_text)
         self.assertEqual(output_text, expected_output)
-
 
     def test_remove_list_markers(self):
         input_text = """
@@ -49,13 +47,11 @@ class TestTextPreprocessor(TestCase):
         output_text = TextPreprocessor.remove_list_markers(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_remove_urls(self):
         input_text = 'My name is John Doe, visit my website www.johndoe.com'
         expected_output = 'My name is John Doe, visit my website '
         output_text = TextPreprocessor.remove_urls(input_text)
         self.assertEqual(output_text, expected_output)
-
 
     def test_remove_punctuation(self):
         input_text = 'Helllo, I am John Doe!!! My email is john.doe@email.com. Visit our website www.johndoe.com'
@@ -63,13 +59,11 @@ class TestTextPreprocessor(TestCase):
         output_text = TextPreprocessor.remove_punctuation(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_remove_duplicate_punctuation(self):
         input_text = 'Helllo, I am John Doe!!! My email is john.doe@email.com. Visit our website www.johndoe.com'
         expected_output = 'Helllo, I am John Doe! My email is john.doe@email.com. Visit our website www.johndoe.com'
         output_text = TextPreprocessor.remove_duplicate_punctuation(input_text)
         self.assertEqual(output_text, expected_output)
-
 
     def test_remove_special_characters(self):
         input_text = """
@@ -77,9 +71,9 @@ class TestTextPreprocessor(TestCase):
         However, in coding, # might denote a 'comment'. Also, don't forget about the ampersand (&), which represents 'and'.
         Here are some other special characters: å¼«¥ª°©ð±§µæ¹¢³¿®ä£"""
         expected_output = '\nDid you know The  symbol is called ampersat and the  symbol is often referred to as hash or pound\nHowever in coding  might denote a comment Also dont forget about the ampersand  which represents and\nHere are some other special characters \n'
-        output_text = TextPreprocessor.remove_special_characters(input_text, remove_unicode=True)
+        output_text = TextPreprocessor.remove_special_characters(
+            input_text, remove_unicode=True)
         self.assertEqual(output_text, expected_output)
-
 
     def test_expand_contractions(self):
         input_text = "I can't wait to deploy this"
@@ -87,13 +81,11 @@ class TestTextPreprocessor(TestCase):
         output_text = TextPreprocessor.expand_contractions(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_remove_email_addresses(self):
         input_text = 'Helllo, I am John Doe!!! My email is john.doe@email.com. Visit our website www.johndoe.com'
         expected_output = 'Helllo, I am John Doe!!! My email is . Visit our website www.johndoe.com'
         output_text = TextPreprocessor.remove_email_addresses(input_text)
         self.assertEqual(output_text, expected_output)
-
 
     def test_remove_phone_numbers(self):
         input_text = 'My phone number is +1-973-932-9426'
@@ -101,34 +93,87 @@ class TestTextPreprocessor(TestCase):
         output_text = TextPreprocessor.remove_phone_numbers(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_check_spelling(self):
         input_text = 'misisippi'
         expected_output = 'mississippi'
         output_text = TextPreprocessor.check_spelling(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_remove_stopwords(self):
         input_text = 'The quick brown fox jumps over the lazy dog sitting in the warm sunlight on a beautiful day'
-        expected_output = ['The','quick','brown','fox','jumps','lazy','dog','sitting','warm','sunlight','beautiful','day']
+        expected_output = ['The', 'quick', 'brown', 'fox', 'jumps',
+                           'lazy', 'dog', 'sitting', 'warm', 'sunlight', 'beautiful', 'day']
         output_text = TextPreprocessor.remove_stopwords(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_tokenize_words(self):
         input_text = 'The quick brown fox jumps over the lazy dog sitting in the warm sunlight on a beautiful day'
-        expected_output = ['The','quick','brown','fox','jumps','over','the','lazy','dog','sitting','in','the','warm','sunlight','on','a','beautiful','day']
+        expected_output = ['The', 'quick', 'brown', 'fox', 'jumps', 'over', 'the', 'lazy',
+                           'dog', 'sitting', 'in', 'the', 'warm', 'sunlight', 'on', 'a', 'beautiful', 'day']
         output_text = TextPreprocessor.tokenize_words(input_text)
         self.assertEqual(output_text, expected_output)
 
-
     def test_tokenize_sentences(self):
         input_text = "Hello there! It's a beautiful day today. Have you seen the movie that just came out? I heard it's fantastic. Let's go see it!"
-        expected_output = ['Hello there!',"It's a beautiful day today.",'Have you seen the movie that just came out?',"I heard it's fantastic.","Let's go see it!"]
+        expected_output = ['Hello there!', "It's a beautiful day today.",
+                           'Have you seen the movie that just came out?', "I heard it's fantastic.", "Let's go see it!"]
         output_text = TextPreprocessor.tokenize_sentences(input_text)
         self.assertEqual(output_text, expected_output)
 
-    
-    
+    def test_remove_whitespace(self):
+        input_text = "   Hello,   this  is   an    example    text. \n  We're   testing     the  remove_whitespace()   function.   "
+        expected_output = "Hello, this is an example text. We're testing the remove_whitespace() function."
+        output_text = TextPreprocessor.remove_whitespace(input_text)
+        self.assertEqual(output_text, expected_output)
 
+    def test_remove_phone_numbers(self):
+        input_text = 'My cell number is +1-123-456-7890'
+        expected_output = 'My cell number is <PHONE_NUMBER>'
+        output_text = TextPreprocessor.remove_phone_numbers(input_text)
+        self.assertEqual(output_text, expected_output)
+
+    def test_encode_text(self):
+        input_text = 'Hello, world! This is a test text. Here are some non-ASCII characters: €, ®, ™, è, ñ, 你好.'
+        expected_output = b'Hello, world! This is a test text. Here are some non-ASCII characters: ?, ?, ?, ?, ?, ??.'
+        output_text = TextPreprocessor.encode_text(
+            input_text, encoding='ascii', errors='replace')
+        self.assertEqual(output_text, expected_output)
+
+    def test_remove_social_security_numbers(self):
+        input_text = "John's social security number is 123-45-6789. Mary's social security number is 987654321. Another invalid number is 666-45-1234 and yet another one is 000-00-0000. There's also 123456789 which is missing the dashes."
+        expected_output = "John's social security number is <SOCIAL_SECURITY_NUMBER>. Mary's social security number is 987654321. Another invalid number is 666-45-1234 and yet another one is 000-00-0000. There's also <SOCIAL_SECURITY_NUMBER> which is missing the dashes."
+        output_text = TextPreprocessor.remove_social_security_numbers(
+            input_text)
+        self.assertEqual(output_text, expected_output)
+
+    def test_remove_credit_card_numbers(self):
+        input_text = 'I have multiple cards: a Visa 4111111111111111, a MasterCard 5555555555554444, an American Express 378282246310005, a Discover 6011111111111117, and a JCB 3530111333300000.'
+        expected_output = 'I have multiple cards: a Visa FOO_BAR, a MasterCard FOO_BAR, an American Express FOO_BAR, a Discover FOO_BAR, and a JCB FOO_BAR.'
+        output_text = TextPreprocessor.remove_credit_card_numbers(
+            input_text, custom_mask='FOO_BAR')
+        self.assertEqual(output_text, expected_output)
+
+    def test_stem_words(self):
+        input_text = 'I love playing games and reading books'
+        expected_output = ['I', 'love', 'play', 'game', 'and', 'read', 'book']
+        output_text = TextPreprocessor.stem_words(input_text)
+        self.assertEqual(output_text, expected_output)
+
+    def test_lemmatize_words(self):
+        input_text = 'The cats are playing with the mice'
+        expected_output = ['The', 'cat', 'are',
+                           'playing', 'with', 'the', 'mouse']
+        output_text = TextPreprocessor.lemmatize_words(input_text)
+        self.assertEqual(output_text, expected_output)
+
+    def test_substitute_tokens(self):
+        tokens = ['vs', 'aapl', 'cmo']
+        expected_output = ['versus', 'Apple', 'chief marketing officer']
+        output_text = TextPreprocessor.substitute_token(tokens)
+        self.assertEqual(output_text, expected_output)
+
+    def test_handle_line_feeds(self):
+        input_text = "Hello,\nThis is a test\nof line feeds.\r\nHow are you?\n"
+        expected_output = "Hello,This is a testof line feeds.How are you?"
+        output_text = TextPreprocessor.handle_line_feeds(input_text)
+        self.assertEqual(output_text, expected_output)

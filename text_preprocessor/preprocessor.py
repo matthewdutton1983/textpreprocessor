@@ -238,6 +238,7 @@ class PreProcessor:
 
     @_pipeline_method
     def check_spelling(self, input_text_or_list: Union[str, List[str]], case_sensitive: bool = True) -> str:
+        # How does the user pass in a language?
         try:
             spell_checker = SpellChecker(language=self.language, distance=1, case_sensitive=case_sensitive)
             

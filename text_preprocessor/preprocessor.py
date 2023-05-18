@@ -28,7 +28,6 @@ logging.basicConfig(level=logging.INFO)
 class PreProcessor:
     def __init__(
         self,
-        ignore_spellcheck_word_file_path: Optional[Union[str, Path]] = None,
         custom_sub_csv_file_path: Optional[Union[str, Path]] = None,
         language: str = 'en',
         stemmer: Optional[str] = None,
@@ -42,8 +41,6 @@ class PreProcessor:
 
         self._CUSTOM_SUB_CSV_FILE_PATH = custom_sub_csv_file_path or os.path.join(
             os.path.dirname(__file__), './data/custom_substitutions.csv')
-        self._IGNORE_SPELLCHECK_WORD_FILE_PATH = ignore_spellcheck_word_file_path or os.path.join(
-            os.path.dirname(__file__), './data/ignore_spellcheck_words.txt')
 
         self.default_lemmatizer = lemmatizer
         self.default_stemmer = None
@@ -242,29 +239,18 @@ class PreProcessor:
     @_pipeline_method
     def check_spelling(self, input_text_or_list: Union[str, List[str]], case_sensitive: bool = True) -> str:
         try:
-            spell_checker = SpellChecker(language=self.language, distance=1)
-            if self._IGNORE_SPELLCHECK_WORD_FILE_PATH is not None:
-                spell_checker.word_frequency.load_text_file(
-                    self._IGNORE_SPELLCHECK_WORD_FILE_PATH)
-
+            spell_checker = SpellChecker(language=self.language, distance=1, case_sensitive=case_sensitive)
+            
             if input_text_or_list is None or len(input_text_or_list) == 0:
                 return ''
 
             if isinstance(input_text_or_list, str):
-                if not case_sensitive:
-                    input_text_or_list = input_text_or_list.lower()
                 tokens = word_tokenize(input_text_or_list)
             else:
-                if not case_sensitive:
-                    tokens = [token.lower() for token in input_text_or_list
-                              if token is not None and len(token) > 0]
-                else:
-                    tokens = [token for token in input_text_or_list
-                              if token is not None and len(token) > 0]
+                tokens = [token for token in input_text_or_list 
+                          if token is not None and len(token) > 0]
 
-            misspelled = spell_checker.unknown(tokens)
-            corrected_tokens = [spell_checker.correction(word) if 
-                                word in misspelled else word for idx, word in enumerate(tokens)]
+            corrected_tokens = [spell_checker.correction(word) for word in tokens]
 
             return ' '.join(corrected_tokens).strip()
         except Exception as e:
@@ -525,13 +511,4 @@ class PreProcessor:
             self.clear_pipeline()
         self.load_default_pipeline()
         return self.execute_pipeline(input_text)
-
-
-if __name__ == '__main__':
-    preprocessor = PreProcessor()
-    preprocessor.add_to_pipeline(
-        [preprocessor.make_lowercase, preprocessor.remove_names])
-    preprocessor.view_pipeline()
-    text = 'Helllo, I am John Doe!!! My email is john.doe@email.com. Visit our website www.johndoe.com'
-    result = preprocessor.execute_pipeline(text)
-    print(result)
+    

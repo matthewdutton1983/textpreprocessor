@@ -22,7 +22,7 @@ from spellchecker import SpellChecker
 logging.basicConfig(level=logging.INFO)
 
 
-class TextPreprocessor:
+class PreProcessor:
     def __init__(
         self,
         ignore_spellcheck_word_file_path: Optional[Union[str, Path]] = None,

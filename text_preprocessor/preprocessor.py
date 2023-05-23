@@ -1,11 +1,8 @@
 # Import standard libraries
-import os
 import re
 import inspect
 import string
 import logging
-import csv
-from pathlib import Path
 from unicodedata import normalize
 from typing import Optional, Callable, Union, Dict, List, Any
 
@@ -20,47 +17,20 @@ from nltk.stem import PorterStemmer, SnowballStemmer, LancasterStemmer, WordNetL
 from spellchecker import SpellChecker
 
 # Import project code
-from pipeline import Pipeline
+from text_preprocessor.decorators import pipeline_method
+from text_preprocessor.pipeline import Pipeline
 
 
 logging.basicConfig(level=logging.INFO)
 
 
 class PreProcessor:
-    def __init__(
-        self,
-        custom_sub_csv_file_path: Optional[Union[str, Path]] = None,
-        language: str = 'en',
-        stemmer: Optional[str] = None,
-        lemmatizer: Optional[WordNetLemmatizer] = None,
-    ):
-
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-
         self.pipeline = None
-
-        self._CUSTOM_SUB_CSV_FILE_PATH = custom_sub_csv_file_path or os.path.join(
-            os.path.dirname(__file__), './data/custom_substitutions.csv')
-
-        self.default_lemmatizer = lemmatizer
-        self.default_stemmer = None
-        if stemmer is not None:
-            if stemmer.lower() == 'porter':
-                self.default_stemmer = PorterStemmer()
-            elif stemmer.lower() == 'snowball':
-                self.default_stemmer = SnowballStemmer(language)
-            elif stemmer.lower() == 'lancaster':
-                self.default_stemmer = LancasterStemmer()
-            else:
-                raise ValueError(
-                    f"Unsupported stemmer '{stemmer}'. Supported stemmers are: 'porter', 'snowball', 'lancaster'")
-
-        supported_languages = ['en', 'es', 'fr', 'pt', 'de', 'ru', 'ar']
-        if language not in supported_languages:
-            raise ValueError(
-                f"Unsupported language '{language}'. Supported language are: {supported_languages}")
-        self.language = language
+        self.supported_languages = ['en', 'es', 'fr', 'pt', 'de', 'ru', 'ar']
+        self.stop_words = set(stopwords.words('english'))
 
         nltk.download('stopwords', quiet=True)
         nltk.download('wordnet', quiet=True)
@@ -71,55 +41,67 @@ class PreProcessor:
         self.logger.error(
             f'Error occurred in function {function_name}: {str(e)}')
 
-    def _pipeline_method(func):
-        """Decorator to mark methods that can be added to the pipeline"""
-        func.is_pipeline_method = True
-        return func
-    
     def create_pipeline(self):
         """Create a new Pipeline object"""
         if self.pipeline is not None:
             raise ValueError("A pipeline already exists.")
         self.pipeline = Pipeline()
         return self.pipeline
-    
+
     def delete_pipeline(self):
         """Delete the existing Pipeline object"""
         if self.pipeline is None:
             raise ValueError("No pipeline exists.")
         self.pipeline = None
-        
+
     def add_to_pipeline(self, methods: Union[List[Callable], Callable]) -> None:
         """Takes a list of method as an argument and adds it to the pipeline"""
         if self.pipeline is None:
-            raise ValueError("No pipeline created. Call create_pipeline() to create a new Pipeline object.")
+            raise ValueError(
+                "No pipeline created. Call create_pipeline() to create a new Pipeline object.")
         self.pipeline.add_methods(methods)
 
     def remove_from_pipeline(self, methods: Union[List[Callable], Callable]) -> None:
         """Takes a method as an argument and removes it from the pipeline"""
         if self.pipeline is None:
-            raise ValueError("No pipeline created. Call create_pipeline() to create a new Pipeline object.")
-        self.pipeline.remove_methods(methods) 
+            raise ValueError(
+                "No pipeline created. Call create_pipeline() to create a new Pipeline object.")
+        self.pipeline.remove_methods(methods)
 
-    def view_pipeline(self) -> None:
-        """Prints the name of each method in the pipeline"""
-        if self.pipeline is None:
-            raise ValueError("No pipeline created. Call create_pipeline() to create a new Pipeline object.")
-        self.pipeline.view_pipeline()
+    def load_default_pipeline(self) -> None:
+        """Adds a set of default methods to the pipeline"""
+        if self.pipeline:
+            self.pipeline.clear_pipeline()
+
+        default_methods: List[Callable] = [
+            self.tokenize_sentences,
+            self.make_lowercase,
+            self.remove_punctuation,
+            self.remove_stopwords,
+            self.lemmatize_words,
+            self.handle_line_feeds,
+            self.remove_whitespace,
+            self.check_spelling,
+        ]
+
+        self.pipeline.add_methods(default_methods)
+        self.logger.info("Default pipeline loaded.")
 
     def execute_pipeline(self, input_text: str, errors: str = 'continue') -> str:
         if self.pipeline is None:
-            raise ValueError("No pipeline created. Call create_pipeline() to create a new Pipeline object.")
-        self.pipeline.execute_pipeline(input_text, errors)
+            raise ValueError(
+                "No pipeline created. Call create_pipeline() to create a new Pipeline object.")
+        return self.pipeline.execute_pipeline(input_text, errors)
 
     def empty_pipeline(self) -> None:
         if self.pipeline is None:
-            raise ValueError("No pipeline created. Call create_pipeline() to create a new Pipeline object.")
+            raise ValueError(
+                "No pipeline created. Call create_pipeline() to create a new Pipeline object.")
         self.pipeline.clear_pipeline()
 
     ################################## PIPELINE METHODS ##################################
 
-    @_pipeline_method
+    @pipeline_method
     def replace_words(self, input_text: str, replacement_dict: Dict[str, str],
                       case_sensitive: bool = False) -> str:
         try:
@@ -133,7 +115,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def make_lowercase(self, input_text: str) -> str:
         try:
             processed_text = input_text.lower()
@@ -141,29 +123,29 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def make_uppercase(self, input_text: str) -> str:
         try:
             return input_text.upper()
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_numbers(self, input_text: str) -> str:
         try:
             return re.sub('\d+', '', input_text)
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_list_markers(self, input_text: str) -> str:
         """Remove bullets or numbering in itemized input"""
         try:
-            return re.sub('[(\s][0-9a-zA-Z][.)]\s+|[(\s][ivxIVX]+[.)]\s+', ' ', input_text)
+            return re.sub('(^|\s)[0-9a-zA-Z][.)]\s+|(^|\s)[ivxIVX]+[.)]\s+', ' ', input_text)
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_urls(self, input_text: str, use_mask: Optional[bool] = True, custom_mask: Optional[str] = None) -> str:
         try:
             regex_pattern = re.compile(r'(www|http)\S+')
@@ -176,7 +158,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_punctuation(self, input_text: str, punctuations: Optional[str] = None) -> str:
         """
         Removes all punctuations from a string as defined by string.punctuation or a custom list.
@@ -191,14 +173,14 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_duplicate_punctuation(self, input_text: str) -> str:
         try:
             return re.sub(r'([\!\?\.\,\:\;]){2,}', r'\1', input_text)
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_special_characters(self, input_text: str, remove_unicode: bool = False,
                                   custom_characters: Optional[List[str]] = None) -> str:
         try:
@@ -215,14 +197,14 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def expand_contractions(self, input_text: str) -> str:
         try:
             return contractions.fix(input_text)
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_email_addresses(self, input_text: str, use_mask: Optional[bool] = True,
                                custom_mask: Optional[str] = None) -> str:
         try:
@@ -237,29 +219,40 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
-    def check_spelling(self, input_text_or_list: Union[str, List[str]], case_sensitive: bool = True) -> str:
-        # How does the user pass in a language?
-        # It is making text lower case
+    @pipeline_method
+    def check_spelling(self, input_text_or_list: Union[str, List[str]],
+                       case_sensitive: bool = True, language: str = 'en') -> str:
         try:
-            spell_checker = SpellChecker(language=self.language, distance=1, case_sensitive=case_sensitive)
-            
+            supported_languages = ['en', 'es', 'fr', 'pt', 'de', 'ru', 'ar']
+            if language not in supported_languages:
+                raise ValueError(
+                    f"Unsupported language '{language}'. Supported languages are: {supported_languages}")
+
+            spell_checker = SpellChecker(
+                language=language, case_sensitive=case_sensitive)
+
             if input_text_or_list is None or len(input_text_or_list) == 0:
                 return ''
 
             if isinstance(input_text_or_list, str):
                 tokens = word_tokenize(input_text_or_list)
             else:
-                tokens = [token for token in input_text_or_list 
-                          if token is not None and len(token) > 0]
+                tokens = [
+                    token for token in input_text_or_list if token is not None and len(token) > 0]
 
-            corrected_tokens = [spell_checker.correction(word) for word in tokens]
+            corrected_tokens = []
+            for word in tokens:
+                if word not in spell_checker:
+                    correction = spell_checker.correction(word)
+                    corrected_tokens.append(correction)
+                else:
+                    corrected_tokens.append(word)
 
             return ' '.join(corrected_tokens).strip()
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_stopwords(self, input_text_or_list: Union[str, List[str]], stop_words: Optional[set] = None) -> List[str]:
         try:
             if stop_words is None:
@@ -277,7 +270,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def tokenize_words(self, input_text: str) -> List[str]:
         """Converts a text into a list of word tokens"""
         try:
@@ -287,7 +280,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def tokenize_sentences(self, input_text: str, tokenizer: Optional[Any] = None) -> List[str]:
         """Converts a text into a list of sentence tokens"""
         try:
@@ -300,7 +293,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def normalize_unicode(self, input_text: str) -> str:
         """Normalize unicode data to remove umlauts, and accents, etc."""
         try:
@@ -308,7 +301,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_names(self, input_text: str, use_mask: Optional[bool] = True, custom_mask: Optional[str] = None) -> str:
         try:
             if custom_mask:
@@ -337,7 +330,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_whitespace(self, input_text: str, mode: str = 'strip', keep_duplicates: bool = False) -> str:
         """Remove leading and trailing spaces by default, as well as duplicate whitespace."""
         try:
@@ -365,7 +358,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_phone_numbers(self, input_text: str, use_mask: Optional[bool] = True, custom_mask: Optional[str] = None) -> str:
         try:
             regex_pattern = re.compile(
@@ -379,7 +372,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def encode_text(self, input_text: str, encoding: str = 'utf-8', errors: str = 'strict') -> bytes:
         try:
             if encoding not in ['utf-8', 'ascii']:
@@ -393,7 +386,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_social_security_numbers(self, input_text: str, use_mask: Optional[bool] = True, custom_mask: Optional[str] = None) -> str:
         """Regex pattern follows the rules for a valid SSN"""
         try:
@@ -404,7 +397,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def remove_credit_card_numbers(self, input_text: str, use_mask: Optional[bool] = True, custom_mask: Optional[str] = None) -> str:
         try:
             regex_pattern = '(4[0-9]{12}(?:[0-9]{3})?|(?:5[1-5][0-9]{2}|222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[01][' \
@@ -417,25 +410,37 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
-    def stem_words(self, input_text_or_list: Union[str, List[str]]) -> List[str]:
+    @pipeline_method
+    def stem_words(self, input_text_or_list: Union[str, List[str]],
+                   stemmer: Optional[str] = None) -> List[str]:
         """Stem each token in a text"""
-        stemmer = self.default_stemmer if self.default_stemmer is not None else PorterStemmer()
+        supported_stemmers = {
+            'snowball': SnowballStemmer('english'),
+            'porter': PorterStemmer(),
+            'lancaster': LancasterStemmer()
+        }
+        if stemmer is None:
+            stemmer = 'porter'
+        stemmer = stemmer.lower()
+        if stemmer not in supported_stemmers:
+            raise ValueError(
+                f"Unsupported stemmer '{stemmer}'. Supported stemmers are: {', '.join(supported_stemmers.keys())}")
         try:
             if isinstance(input_text_or_list, str):
                 tokens = word_tokenize(input_text_or_list)
-                processed_tokens = [stemmer.stem(token) for token in tokens]
+                processed_tokens = [supported_stemmers[stemmer].stem(
+                    token) for token in tokens]
             else:
-                processed_tokens = [stemmer.stem(token) for token in input_text_or_list
+                processed_tokens = [supported_stemmers[stemmer].stem(token) for token in input_text_or_list
                                     if token is not None and len(token) > 0]
             return processed_tokens
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
+    @pipeline_method
     def lemmatize_words(self, input_text_or_list: Union[str, List[str]]) -> List[str]:
         """Lemmatize each token in a text by finding its base form"""
-        lemmatizer = self.default_lemmatizer if self.default_lemmatizer is not None else WordNetLemmatizer()
+        lemmatizer = WordNetLemmatizer()
         try:
             if isinstance(input_text_or_list, str):
                 tokens = word_tokenize(input_text_or_list)
@@ -448,26 +453,7 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
-    def substitute_tokens(self, token_list: List[str]) -> List[str]:
-        """Substitute each token by another token, e.g. vs -> versus"""
-        try:
-            with open(self._CUSTOM_SUB_CSV_FILE_PATH, 'r') as f:
-                csv_file = csv.reader(f)
-                self.sub_dict = dict(csv_file)
-            if token_list is None or len(token_list) == 0:
-                return []
-            processed_tokens = list()
-            for token in token_list:
-                if token in self.sub_dict:
-                    processed_tokens.append(self.sub_dict[token])
-                else:
-                    processed_tokens.append(token)
-            return processed_tokens
-        except Exception as e:
-            self._log_error(e)
-
-    @_pipeline_method
+    @pipeline_method
     def handle_line_feeds(self, input_text: str, mode: str = 'remove') -> str:
         """Handle line feeds in the input text"""
         try:
@@ -488,38 +474,13 @@ class PreProcessor:
         except Exception as e:
             self._log_error(e)
 
-    @_pipeline_method
-    def find_abbreviations(self, input_text: str) -> List[str]:
+    @pipeline_method
+    def find_abbreviations(self, input_text: str) -> Dict[str, str]:
         try:
-            abbrevs = schwartz_hearst.extract_abbreviation_definition_pairs(doc_text=input_text)
-            return abbrevs
+            abbrevs = schwartz_hearst.extract_abbreviation_definition_pairs(
+                doc_text=input_text)
+            abbreviations_dict = {
+                abbreviation: definition for abbreviation, definition in abbrevs}
+            return abbreviations_dict
         except Exception as e:
             self._log_error(e)
-
-    ################################## DEFAULT PIPELINE ##################################
-
-    def load_default_pipeline(self) -> None:
-        """Adds a set of default methods to the pipeline"""
-        if self.pipeline:
-            self.clear_pipeline()
-
-        default_methods: List[Callable] = [
-            self.tokenize_sentences,
-            self.make_lowercase,
-            self.remove_stopwords,
-            self.lemmatize_words,
-            self.check_spelling,
-            self.remove_punctuation,
-            self.remove_numbers,
-        ]
-
-        self.add_to_pipeline(default_methods)
-        self.logger.info("Default pipeline loaded.")
-
-    def execute_default_pipeline(self, input_text: str) -> str:
-        """Set up and run the default pipeline on the given text"""
-        if self.pipeline:
-            self.clear_pipeline()
-        self.load_default_pipeline()
-        return self.execute_pipeline(input_text)
-    

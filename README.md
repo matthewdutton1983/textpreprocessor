@@ -1,4 +1,4 @@
-TextPreprocessor for NLP
+PreProcessor for NLP
 =============
 
 Python package that provides a comprehensive toolkit for pre-processing texual data.
@@ -7,27 +7,29 @@ Usage
 --------
 Install the package using pip:
 ```bash
-pip install <TBD>
+pip install text_preprocessor
 ```
 
 Then, add the package to your python script and call appropriate functions:
 
 ```python
-from text_preprocessing.TextPreprocessor import TextPreprocessor
+from text_preprocessor import PreProcessor
 
-# Create an instance of the TextPreprocessor class
-preprocessor = TextPreprocessor()
+# Create an instance of the PreProcessor class
+preprocessor = PreProcessor()
 
 # Preprocess text using individual methods
 input_text = 'Hello, my name is Joe Bloggs and my email address is joe.bloggs@email.com'
+
 preprocessed_text = preprocessor.remove_email_addresses(input_text)
+
 print(preprocessed_text)
 
 'hello, my name is Joe Bloggs and my email address is <EMAIL_ADDRESS>.'
 ```
 
-You can also run text through a pipeline of different preprocessing methods. 
-There is a default pipeline that features some of the most common / standard preprocessing tasks
+You can also chain together multiple preprocessing methods and run them all as a pipeline. 
+There is a default pipeline that features some of the most common / standard preprocessing tasks.
 Or you can create your own custom pipeline.
 
 Note: Pipelines are configured to automatically give preference to string methods, however, this
@@ -36,22 +38,44 @@ feature can be overridden to preserve the order in which methods were added to t
 ```python
 # Preprocess text using default pipeline
 input_text = 'Hello, my name is Joe Bloggs and my email address is joe.bloggs@email.com'
-pipeline = preprocessor.load_default_pipeline()
-preprocessed_text = preprocessor.execute_pipeline(input_text, pipeline)
-print(preprocessed_text)
 
-'output to be added'
+pipeline = preprocessor.create_pipeline(load_defaults=True)
 
-# Preprocess text using custom preprocess functions in the pipeline 
-input_text = 'Hello, my name is Joe Bloggs and my email address is joe.bloggs@email.com'
-pipeline = [] # You can also run preprocessor.clear_pipeline(pipeline)
-pipeline = preprocessor.add_to_pipeline([preprocessor.make_lowercase, 
-                                        preprocessor.remove_whitespace, 
-                                        preprocessor.remove_stopwords, 
-                                        preprocessor.stem_words, 
-                                        preprocessor.tokenize_sentences])
-preprocessed_text = preprocessor.execute_pipeline(input_text, pipeline)                                        
-print(preprocessed_text)
+result = preprocessor.execute_pipeline(input_text, pipeline)
+
+print(result)
+
+{'processed_text': ['this is a sample sentence now would you like another one'], 'exceptions_list': []}
+```
+
+The output of the pipeline is a dictionary that contains the processed text and an exceptions list. The latter 
+contains a list of any methods that failed to run. To access the text simply unmarshall the dictionary as follows:
+
+```python
+print(result["processed_text"])
+
+['this is a sample sentence now would you like another one']
+```
+
+If the default pipeline does not meet your specific needs, it is easy to create a custom pipeline.
+
+```python
+# Preprocess text using custom pipeline 
+pipeline = create_pipeline()
+
+pipeline.add_methods([
+  preprocessor.make_lowercase,
+  preprocessor.remove_whitespace,
+  preprocessor.remove_email_addresses
+  preprocessor.handle_line_feeds
+])
+
+
+input_text = "  Hello, my name is Joe Bloggs and my email address is joe.bloggs@email.com\r\n  '
+
+result = preprocessor.execute_pipeline(input_text)                                        
+
+print(result["preprocessed_text"])
 
 'output to be added'
 ```

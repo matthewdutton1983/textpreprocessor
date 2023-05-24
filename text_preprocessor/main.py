@@ -1,5 +1,4 @@
-from preprocessor import PreProcessor
-from pipeline import Pipeline
+from .pipeline_manager import PreProcessor
 
 
 def main():

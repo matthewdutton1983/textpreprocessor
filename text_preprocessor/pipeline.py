@@ -55,7 +55,7 @@ class Pipeline:
             methods = [methods]
 
         for method in methods:
-            if getattr(method.__func__, 'is_pipeline_method', False):
+            if getattr(method, 'is_pipeline_method', False):
                 if method not in self.pipeline:
                     self.pipeline.append(method)
                     self.logger.info(
@@ -86,7 +86,7 @@ class Pipeline:
         other_methods: List[Callable] = []
 
         for method in self.pipeline:
-            if getattr(method.__func__, 'is_pipeline_method', False):
+            if getattr(method, 'is_pipeline_method', False):
                 if method.__annotations__.get('return') == str:
                     str_methods.append(method)
                 else:
@@ -94,26 +94,13 @@ class Pipeline:
 
         self.pipeline = str_methods + other_methods
 
-    def execute_pipeline(self, input_text: str, errors: str = 'continue',
-                         prioritize_strings: bool = True) -> str:
-        if errors not in ['continue', 'stop']:
-            raise ValueError(
-                "Invalid errors value. Valid options are 'continue' and 'stop'.")
+    def load_default_pipeline(self, default_methods: List[Callable]) -> None:
+        """Adds a core set of common methods to the pipeline"""
+        if self.pipeline:
+            self.clear_pipeline()
 
-        if prioritize_strings:
-            self._prioritize_string_methods()
-
-        processed_text = input_text
-
-        for method in self.pipeline:
-            try:
-                processed_text = method(input_text)
-            except Exception as e:
-                self._log_error(e)
-                if errors == 'stop':
-                    break
-
-        return processed_text
+        self.add_methods(default_methods)
+        self.logger.info("Default pipeline loaded.")
 
     def clear_pipeline(self) -> None:
         if self.pipeline:
@@ -153,3 +140,25 @@ class Pipeline:
             self.logger.info("Pipeline methods reprioritized.")
         else:
             self.logger.info("The pipeline is currently empty.")
+
+    def execute_pipeline(self, input_text: str, errors: str = 'continue', prioritize_strings: bool = True) -> str:
+        if errors not in ['continue', 'stop']:
+            raise ValueError(
+                "Invalid errors value. Valid options are 'continue' and 'stop'.")
+
+        if prioritize_strings:
+            self._prioritize_string_methods()
+
+        processed_text = input_text
+        exceptions_list = []
+
+        for method in self.pipeline:
+            try:
+                processed_text = method(input_text)
+            except Exception as e:
+                exceptions_list.append(e)
+                self._log_error(e)
+                if errors == 'stop':
+                    break
+
+        return processed_text, exceptions_list

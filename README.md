@@ -45,7 +45,12 @@ result = preprocessor.execute_pipeline(input_text)
 
 print(result)
 
-{'processed_text': ['this is a sample sentence now would you like another one'], 'exceptions_list': []}
+{
+  'processed_text': [
+    'this is a sample sentence now would you like another one'
+   ], 
+   'exceptions_list': []
+}
 ```
 
 The output of the pipeline is a dictionary that contains the processed text and an exceptions list. The latter 

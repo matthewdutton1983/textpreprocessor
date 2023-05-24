@@ -7,7 +7,8 @@ def main():
     pipeline = preprocessor.create_pipeline()
 
     # Add preprocessing methods to the pipeline
-    pipeline.add_method([preprocessor.make_lowercase,
+    # TODO: Fix this
+    pipeline.add_methods([preprocessor.make_lowercase,
                          preprocessor.check_spelling,
                          preprocessor.remove_names,
                          preprocessor.remove_whitespace])

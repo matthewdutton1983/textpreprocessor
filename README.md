@@ -71,13 +71,16 @@ pipeline.add_methods([
 ])
 
 
-input_text = "  Hello, my name is Joe Bloggs and my email address is joe.bloggs@email.com\r\n  '
+input_text = "  Hello, my name is Joe Bloggs and my email address is joe.bloggs@email.com\r\n  "
 
 result = preprocessor.execute_pipeline(input_text)                                        
 
-print(result["preprocessed_text"])
+print(result)
 
-'output to be added'
+{
+  'processed_text': 'hello, my name is joe bloggs and my email address is <EMAIL_ADDRESS>',
+  'exceptions_list': []
+}
 ```
 
 Features
@@ -85,29 +88,29 @@ Features
 
 | Feature                                                       | Method                                | Default Pipeline
 | :------------------------------------------------------------ |:------------------------------------- | :----------------------
-| replace words                                                 | replace_words                         | 
-| convert to lower case                                         | make_lowercase                        | Yes
-| convert to upper case                                         | make_uppercase                        |
-| remove numbers                                                | remove_numbers                        |
-| remove bullets and numbering                                  | remove_list_markers                   |
-| remove URLs                                                   | remove_url                            |
-| remove punctuations                                           | remove_punctuation                    | Yes
-| remove just duplicate punctuations                            | remove_duplicate_punctuation          |
-| remove special characters                                     | remove_special_characters             |
-| remove email addresses                                        | remove_email_addresses                |
-| remove stop words                                             | remove_stopwords                      | Yes
-| remove names                                                  | remove_name                           |
-| remove unnecessary whitespace                                 | remove_whitespace                     | Yes
-| remove phone numbers                                          | remove_phone_numbers                  |
-| remove Social Security Numbers                                | remove_ssn                            |
-| remove credit card numbers                                    | remove_credit_card_numbers            |
-| expand contractions                                           | expand_contractions                   |
 | check and correct spellings                                   | check_spelling                        | Yes
-| tokenize words                                                | tokenize_words                        |
-| tokenize sentences                                            | tokenize_sentences                    | Yes
-| normalize unicode (e.g., café -> cafe)                        | normalize_unicode                     |
-| apply a specific encoding to text                             | encode_text                           |
-| stem words                                                    | stem_words                            |
-| lemmatize words                                               | lemmatize_words                       | Yes
-| substitute custom words (e.g., vs -> versus)                  | substitute_token                      |
+| convert to lower case                                         | make_lowercase                        | Yes
 | handle line feeds                                             | handle_line_feeds                     | Yes
+| lemmatize words                                               | lemmatize_words                       | Yes
+| remove punctuations                                           | remove_punctuation                    | Yes
+| remove stop words                                             | remove_stopwords                      | Yes
+| remove unnecessary whitespace                                 | remove_whitespace                     | Yes
+| tokenize sentences                                            | tokenize_sentences                    | Yes
+| apply a specific encoding to text                             | encode_text                           | No
+| convert to upper case                                         | make_uppercase                        | No
+| expand contractions                                           | expand_contractions                   | No
+| normalize unicode (e.g., café -> cafe)                        | normalize_unicode                     | No
+| remove bullets and numbering                                  | remove_list_markers                   | No
+| remove credit card numbers                                    | remove_credit_card_numbers            | No
+| remove duplicate punctuations                                 | remove_duplicate_punctuation          | No
+| remove email addresses                                        | remove_email_addresses                | No
+| remove names                                                  | remove_name                           | No
+| remove numbers                                                | remove_numbers                        | No
+| remove phone numbers                                          | remove_phone_numbers                  | No
+| remove Social Security Numbers                                | remove_ssn                            | No
+| remove special characters                                     | remove_special_characters             | No
+| remove URLs                                                   | remove_url                            | No
+| replace words                                                 | replace_words                         | No
+| stem words                                                    | stem_words                            | No
+| substitute custom words (e.g., vs -> versus)                  | substitute_token                      | No
+| tokenize words                                                | tokenize_words                        | No

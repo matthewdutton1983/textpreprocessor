@@ -1,7 +1,7 @@
 # Import standard libraries
 import inspect
 import logging
-from typing import Union, List, Callable, Optional
+from typing import Callable, Optional, Union, List
 
 
 logging.basicConfig(level=logging.INFO)
@@ -14,12 +14,12 @@ class Pipeline:
         self.pipeline = []
 
     @property
-    def length(self) -> int:
+    def total_methods(self) -> int:
         """Return the number of methds in the pipeline"""
         return len(self.pipeline)
 
     @property
-    def methods(self) -> List[Callable]:
+    def list_methods(self) -> List[Callable]:
         """Return a list of methods in the pipeline"""
         return self.pipeline
 
@@ -94,7 +94,7 @@ class Pipeline:
 
         self.pipeline = str_methods + other_methods
 
-    def load_default_pipeline(self, default_methods: List[Callable]) -> None:
+    def _load_default_pipeline(self, default_methods: List[Callable]) -> None:
         """Adds a core set of common methods to the pipeline"""
         if self.pipeline:
             self.clear_pipeline()
@@ -120,9 +120,7 @@ class Pipeline:
             new_pipeline = []
             existing_methods = set(self.pipeline)
 
-            # Add methods in the specified order
             for method_name in method_names:
-                # Find the method in the existing pipeline
                 method = next(
                     (m for m in self.pipeline if m.__name__ == method_name), None
                 )
@@ -130,18 +128,16 @@ class Pipeline:
                     new_pipeline.append(method)
                     existing_methods.remove(method)
 
-            # Add remaining methods in their original order
             for method in self.pipeline:
                 if method in existing_methods:
                     new_pipeline.append(method)
 
-            # Update the pipeline with the new order
             self.pipeline = new_pipeline
             self.logger.info("Pipeline methods reprioritized.")
         else:
             self.logger.info("The pipeline is currently empty.")
 
-    def execute_pipeline(self, input_text: str, errors: str = 'continue', prioritize_strings: bool = True) -> str:
+    def execute_pipeline(self, input_text: str, errors: str = 'continue', prioritize_strings: bool = True) -> dict:
         if errors not in ['continue', 'stop']:
             raise ValueError(
                 "Invalid errors value. Valid options are 'continue' and 'stop'.")
@@ -154,11 +150,15 @@ class Pipeline:
 
         for method in self.pipeline:
             try:
-                processed_text = method(input_text)
+                processed_text = method(processed_text)
             except Exception as e:
-                exceptions_list.append(e)
                 self._log_error(e)
+                exceptions_list.append({"method": method.__name__, "error": str(e)})
                 if errors == 'stop':
                     break
 
-        return processed_text, exceptions_list
+        return {
+            "processed_text": processed_text, 
+            "exceptions_list": exceptions_list
+        }
+    

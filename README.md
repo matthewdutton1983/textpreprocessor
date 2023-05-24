@@ -25,7 +25,7 @@ preprocessed_text = preprocessor.remove_email_addresses(input_text)
 
 print(preprocessed_text)
 
-'hello, my name is Joe Bloggs and my email address is <EMAIL_ADDRESS>.'
+'Hello, my name is Joe Bloggs and my email address is <EMAIL_ADDRESS>.'
 ```
 
 You can also chain together multiple preprocessing methods and run them all as a pipeline. 

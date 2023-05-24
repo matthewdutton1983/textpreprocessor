@@ -41,7 +41,7 @@ input_text = 'Hello, my name is Joe Bloggs and my email address is joe.bloggs@em
 
 pipeline = preprocessor.create_pipeline(load_defaults=True)
 
-result = preprocessor.execute_pipeline(input_text, pipeline)
+result = preprocessor.execute_pipeline(input_text)
 
 print(result)
 

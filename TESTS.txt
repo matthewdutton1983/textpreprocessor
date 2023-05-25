@@ -1,0 +1,18 @@
+input_text = "Michael went to the park with Jessica. They met John and Emily there."
+preprocessor.remove_names(input_text)
+
+input_text = "The Federal Bureau of Investigation (FBI) has been active in maintaining law and order within the United States (U.S.)"
+preprocessor.find_abbreviations(input_text)
+
+input_text = 'Helllo, I am John Doe!!! My email is john.doe@email.com. Visit our website www.johndoe.com'
+replacement_dict = {"john": "foo", "doe": "bar"}
+preprocessor.replace_words(input_text, replacement_dict=replacement_dict, case_sensitive=False)
+
+input_text = 'misisippi'
+preprocessor.check_spelling(input_text)
+
+input_text = "   Hello,   this  is   an    example    text. \n  We're   testing     the  remove_whitespace()   function.   "
+preprocessor.remove_whitespace(input_text)
+
+input_text = "Hello,\nThis is a test\nof line feeds.\r\nHow are you?\n"
+preprocessor.handle_line_feeds(input_text)

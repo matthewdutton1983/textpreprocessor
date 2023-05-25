@@ -1,7 +1,6 @@
 # Import standard libraries
 import inspect
 import logging
-from functools import wraps
 from typing import Callable, Optional, Union, List
 
 # Import project code
@@ -55,18 +54,18 @@ class PreProcessor():
         return len(self.pipeline) == 0
 
     @property
-    def last_method(self) -> Optional[Callable]:
-        """Returns the last method added to the pipeline"""
-        if self.pipeline:
-            return self.pipeline[-1]
-        else:
-            return None
-
-    @property
     def first_method(self) -> Optional[Callable]:
         """Returns the first method added to the pipeline"""
         if self.pipeline:
             return self.pipeline[0]
+        else:
+            return None
+        
+    @property
+    def last_method(self) -> Optional[Callable]:
+        """Returns the last method added to the pipeline"""
+        if self.pipeline:
+            return self.pipeline[-1]
         else:
             return None
 
@@ -212,15 +211,23 @@ class PreProcessor():
 
         processed_text = input_text_or_list
 
+        # for method in self.pipeline:
+        #     try:
+        #         if isinstance(processed_text, list):
+        #             processed_text = [method(sent) for sent in processed_text]
+        #         else:
+        #             processed_text = method(processed_text)
+        #     except Exception as e:
+        #         self._log_error(e)
+        #         if errors == 'stop':
+        #             break
+
         for method in self.pipeline:
             try:
-                if isinstance(processed_text, list):
-                    processed_text = [method(sent) for sent in processed_text]
-                else:
-                    processed_text = method(processed_text)
+                processed_text = method(processed_text)
             except Exception as e:
                 self._log_error(e)
-                if errors == 'stop':
+                if errors == "stop":
                     break
 
         return processed_text
